@@ -33,7 +33,6 @@ WSCNet2::WSCNet2(QWidget *parent)
     m_edit_flag = 0;
     m_zoom = 1.0;  //显示图像缩放初始化
     m_is_contrast = 0; //对比度调节初始化
-    m_workplace_path = "";
     m_file_chosen_path = "";
     m_default_message = ui.textEdit_informationOutput->toHtml(); // Message初始信息
 
@@ -61,7 +60,8 @@ WSCNet2::WSCNet2(QWidget *parent)
     connect(ui.horizontalSlider_maxRadius, SIGNAL(valueChanged(int)), this, SLOT(filterByMaxRadius(int)));
 
     // 手动画圆后实时显示图像
-    connect(myqlabel_showImg, SIGNAL(outputCircle(float, float, float)), this, SLOT(paintCircle(float, float, float)));
+    connect(myqlabel_showImg, SIGNAL(outputCircle(float, float, float, int)), this, SLOT(paintCircle(float, float, float, int)));
+    connect(myqlabel_showImg, SIGNAL(outputDrag(float, float)), this, SLOT(dragCircle(float, float)));
 
     // 添加“清空按钮”
     QLineEdit* pLineEdit = ui.lineEdit_imageName;
@@ -75,6 +75,27 @@ WSCNet2::WSCNet2(QWidget *parent)
     pLineEdit = ui.lineEdit_labelText;
     pLineEdit->addAction(clearActionLabel, QLineEdit::TrailingPosition);
     connect(clearActionLabel, &QAction::triggered, pLineEdit, [pLineEdit] { pLineEdit->setText(""); });
+
+    auto clearActionModule = new QAction;
+    clearActionModule->setIcon(QApplication::style()->standardIcon(QStyle::SP_LineEditClearButton));
+    pLineEdit = ui.lineEdit_moduleName;
+    pLineEdit->addAction(clearActionModule, QLineEdit::TrailingPosition);
+    connect(clearActionLabel, &QAction::triggered, pLineEdit, [pLineEdit] { pLineEdit->setText(""); });
+
+    // 如果没有配置文件，则创建配置文件
+    if (!QFile::exists("./WSCNet2.ini"))
+    {
+		QSettings settings("./WSCNet2.ini", QSettings::IniFormat);
+		settings.setIniCodec(QTextCodec::codecForName("UTF-8"));
+		settings.setValue("PATH/last_workplace", "C:/");
+        settings.setValue("General/language", "zh-cn");
+		settings.sync();
+	}
+    
+    // 读取上次软件关闭时工作地址
+    QSettings settings("./WSCNet2.ini", QSettings::IniFormat);
+    m_workplace_path = settings.value("PATH/last_workplace").toString();
+    // 加载默认语言配置 TODO
 }
 
 WSCNet2::~WSCNet2()
@@ -84,38 +105,29 @@ WSCNet2::~WSCNet2()
 
 void WSCNet2::on_pushButton_chooseWorkPlace_clicked()
 {
-    // 读取上次软件关闭时工作地址
-    QSettings settings("./WSCNet2.ini", QSettings::IniFormat);
-    settings.setIniCodec(QTextCodec::codecForName("UTF-8"));
-    if (settings.status() != QSettings::NoError)
+    QString workPlaceAddress = QFileDialog::getExistingDirectory(this, "workPlace", m_workplace_path);
+    if (!workPlaceAddress.size()) // 防止取消选择
+        return;
+
+    ui.lineEdit_workPlace->setText(workPlaceAddress + "/");
+    ui.groupBox_params->setEnabled(true);
+
+    if (workPlaceAddress != m_workplace_path)  //如果地址跟上次不一样，则清除图名，label名，重置工作空间地址
     {
-		settings.setValue("PATH/last_workplace", "C:/");
-	}
-    QString last_workplace = settings.value("PATH/last_workplace").toString();
+        ui.lineEdit_imageName->clear();
+        ui.lineEdit_labelText->clear();
+        m_workplace_path = workPlaceAddress + "/";
+        m_label_save_file_path = m_workplace_path + mk_label_res_folder_name; //标注文件文件夹地址
+        m_img_save_file_path = m_workplace_path + mk_img_res_folder_name; //图像结果存储文件夹地址
+        ui.textEdit_informationOutput->append("The work place is set to " + m_workplace_path + "\n");//输出
+        m_circle_result.clear();
+        imgDisplay(m_circle_result);
 
-
-    QString dst = (m_workplace_path == "") ? last_workplace : m_workplace_path; //打开跟上次一样的地址
-    QString workPlaceAddress = QFileDialog::getExistingDirectory(this, "workPlace", dst);
-    if (workPlaceAddress.size())
-    {
-        ui.lineEdit_workPlace->setText(workPlaceAddress + "/");
-        ui.groupBox_params->setEnabled(true);
-
-        if (workPlaceAddress != m_workplace_path)  //如果地址跟上次不一样，则清除图名，label名，重置工作空间地址
-        {
-            ui.lineEdit_imageName->clear();
-            ui.lineEdit_labelText->clear();
-            m_workplace_path = workPlaceAddress + "/";
-            m_label_save_file_path = m_workplace_path + mk_label_res_folder_name; //标注文件文件夹地址
-            m_img_save_file_path = m_workplace_path + mk_img_res_folder_name; //图像结果存储文件夹地址
-            ui.textEdit_informationOutput->append("The work place is set to " + m_workplace_path + "\n");//输出
-        }
+        // 保存工作地址
+        QSettings settings("./WSCNet2.ini", QSettings::IniFormat);
+        settings.setValue("PATH/last_workplace", m_workplace_path);
+        settings.sync();
     }
-    settings.setValue("PATH/last_workplace", m_workplace_path);
-    settings.sync();
-
-    ui.pushButton_countDroplets->setText(tr("识别当前文件夹"));
-    loadParamsFromJson();
 
     // 读取文件夹下所有图片
     QDir dir(m_workplace_path);
@@ -124,13 +136,14 @@ void WSCNet2::on_pushButton_chooseWorkPlace_clicked()
     m_img_name_list = dir.entryList(nameFilters, QDir::Files | QDir::Readable, QDir::Name);
     if (m_img_name_list.size())
     {
-		ui.textEdit_informationOutput->append("The work place has " + QString::number(m_img_name_list.size()) + " images.");//输出
-	}
+        ui.textEdit_informationOutput->append("The work place has " + QString::number(m_img_name_list.size()) + " images.");//输出
+    }
     else
     {
-		ui.textEdit_informationOutput->append("The work place has no images.");//输出
-	}
+        ui.textEdit_informationOutput->append("The work place has no images.");//输出
+    }
 
+    loadParamsFromJson();
     updateComponentAvailability(); // 更新组件可用性
 }
 
@@ -149,10 +162,18 @@ void WSCNet2::on_pushButton_chooseImage_clicked()
 		    return;
 	    }
 
-        ui.textEdit_informationOutput->append("The image/video is set to " + m_file_chosen_path + "\n");//输出
-        string imageNameS = m_file_chosen_path.toStdString().substr(workPlaceAddress.size(), m_file_chosen_path.size() - workPlaceAddress.size());
-        QString imageName = QString::fromStdString(imageNameS);
-        ui.lineEdit_imageName->setText(imageName);
+        if (checkFileType(m_file_chosen_path) == countDropletsThread::ECountMode::COUNT_UNKNOWN)
+        {
+            QMessageBox::warning(this, "ERROR", tr("未知的图片类型"), QMessageBox::Ok);
+            m_file_chosen_path = "";
+        }
+        else
+        {
+            ui.textEdit_informationOutput->append("The image/video is set to " + m_file_chosen_path + "\n");//输出
+            string imageNameS = m_file_chosen_path.toStdString().substr(workPlaceAddress.size(), m_file_chosen_path.size() - workPlaceAddress.size());
+            QString imageName = QString::fromStdString(imageNameS);
+            ui.lineEdit_imageName->setText(imageName);
+        }
     }
 }
 
@@ -164,7 +185,6 @@ void WSCNet2::on_lineEdit_imageName_textChanged(const QString& text)
         ui.textEdit_informationOutput->append("Clear chosen image.");//输出
         ui.lineEdit_labelText->clear();
         m_cur_img.release();
-        ui.pushButton_countDroplets->setText(tr("识别当前文件夹"));
 	}
     else
     {
@@ -187,7 +207,6 @@ void WSCNet2::on_lineEdit_imageName_textChanged(const QString& text)
             if (4 == m_cur_img.channels())
                 cvtColor(m_cur_img, m_cur_img, COLOR_BGRA2BGR);
 
-            ui.pushButton_countDroplets->setText(tr("开始识别"));
             m_circle_result.clear();
             m_accu_circle_results.clear();
             m_edit_circle_result.clear();
@@ -221,8 +240,6 @@ void WSCNet2::on_lineEdit_imageName_textChanged(const QString& text)
         // 视频地址
         else if (file_type == countDropletsThread::ECountMode::COUNT_VIDEO)
         {
-			ui.pushButton_countDroplets->setText(tr("开始识别"));
-
 			m_circle_result.clear();
 			m_accu_circle_results.clear();
 			m_edit_circle_result.clear();
@@ -403,8 +420,6 @@ void WSCNet2::on_pushButton_countDroplets_clicked()
         ui.textEdit_informationOutput->append("<font color=\"#FF8000\">WARNING</font> Module path is none, will only do segmentation. \n");
     }
 
-    ui.pushButton_countDroplets->setText(tr("识别中..."));
-
     count_thread = new countDropletsThread();
     count_thread->setPathToSaveResult(mk_img_res_folder_name, mk_label_res_folder_name);
     count_thread->setParams(is_bright_field, kernel_size, min_radius, max_radius, radius_modify, module_path);
@@ -465,9 +480,9 @@ void WSCNet2::on_checkBox_editImage_clicked()
 
         ui.horizontalSlider_radiusModify->setRange(radius_modify - 10, radius_modify + 10);
         ui.horizontalSlider_radiusModify->setValue(radius_modify);
-		ui.horizontalSlider_minRadius->setRange(minRadius - 10, minRadius + 10);
+		ui.horizontalSlider_minRadius->setRange(minRadius - 20, minRadius + 20);
         ui.horizontalSlider_minRadius->setValue(minRadius);
-        ui.horizontalSlider_maxRadius->setRange(maxRadius - 10, maxRadius + 10);
+        ui.horizontalSlider_maxRadius->setRange(maxRadius - 20, maxRadius + 20);
         ui.horizontalSlider_maxRadius->setValue(maxRadius);
     }
     else  // 识别模式
@@ -584,7 +599,7 @@ void WSCNet2::on_checkBox_manual_clicked()
     updateComponentAvailability(); // 更新组件可用性
 }
 
-void WSCNet2::paintCircle(float centerX, float centerY, float radius)
+void WSCNet2::paintCircle(float centerX, float centerY, float radius, int drop_state)
 {
     if (radius > 0) //增加液滴
     {
@@ -600,15 +615,17 @@ void WSCNet2::paintCircle(float centerX, float centerY, float radius)
 
         if (diftCenterX >= 0 && diftCenterX < m_cur_img.cols && diftCenterY >= 0 && diftCenterY < m_cur_img.rows)
         {
-            int type(0);
-            if (ui.comboBox_function->currentIndex() == 0)
-                type = 0;
-            else if (ui.comboBox_function->currentIndex() == 1)
-                type = 1;
-            else if (ui.comboBox_function->currentIndex() == 2)
-                type = 2;
+            if (drop_state == -1)
+            {
+                if (ui.comboBox_function->currentIndex() == 0)
+                    drop_state = 0;
+                else if (ui.comboBox_function->currentIndex() == 1)
+                    drop_state = 1;
+                else if (ui.comboBox_function->currentIndex() == 2)
+                    drop_state = 2;
+            }
 
-            dropType aCircle(dropType(CIRCLE(Point2f(diftCenterX, diftCenterY), radius), type));
+            dropType aCircle(dropType(CIRCLE(Point2f(diftCenterX, diftCenterY), radius), drop_state));
             m_edit_circle_result.push_back(aCircle);
             m_accu_circle_results.back() = m_edit_circle_result;
             imgDisplay(m_edit_circle_result);
@@ -664,6 +681,49 @@ void WSCNet2::paintCircle(float centerX, float centerY, float radius)
         m_accu_circle_results.back() = m_edit_circle_result;
     }
 
+}
+
+void WSCNet2::dragCircle(float centerX, float centerY)
+{
+    m_edit_circle_result = m_accu_circle_results.back();
+
+    float diftx = myqlabel_showImg->width() / 2 - m_cur_img.cols / 2 * m_zoom;
+    float difty = myqlabel_showImg->height() / 2 - m_cur_img.rows / 2 * m_zoom;
+
+    //修正圆心
+    float diftCenterX = (centerX - diftx) / m_zoom;
+    float diftCenterY = (centerY - difty) / m_zoom;
+
+    if (diftCenterX < 0 || diftCenterX >= m_cur_img.cols || diftCenterY < 0 || diftCenterY >= m_cur_img.rows)//点击位置超出图像
+    {
+        myqlabel_showImg->setCircle(-1, -1, -1, -1);
+        return;
+    }
+
+    //计算所选中的液滴
+    vector<pair<float, int>> disWithRadius;
+    for (int i = 0; i != m_edit_circle_result.size(); i++)
+    {
+        float dis = sqrt((m_edit_circle_result[i].first.first.x - diftCenterX) * (m_edit_circle_result[i].first.first.x - diftCenterX) +
+            (m_edit_circle_result[i].first.first.y - diftCenterY) * (m_edit_circle_result[i].first.first.y - diftCenterY));
+        disWithRadius.push_back(pair<float, int>(dis, i));
+    }
+    sort(disWithRadius.begin(), disWithRadius.end());
+    if (disWithRadius[0].first > m_edit_circle_result[disWithRadius[0].second].first.second) //未选中任何液滴
+    {
+        myqlabel_showImg->setCircle(-1, -1, -1, -1);
+        return;
+    }
+
+    // 删除液滴
+    const int delete_circle_id = disWithRadius[0].second;
+    dropType aCircle = m_edit_circle_result[delete_circle_id];
+    float centerX_new = aCircle.first.first.x * m_zoom + diftx;
+    float centerY_new = aCircle.first.first.y * m_zoom + difty;
+    myqlabel_showImg->setCircle(centerX_new, centerY_new, aCircle.first.second, aCircle.second);
+    m_edit_circle_result.erase(m_edit_circle_result.begin() + delete_circle_id);
+    m_accu_circle_results.back() = m_edit_circle_result;
+    imgDisplay(m_edit_circle_result);
 }
 
 void WSCNet2::deleteCircle(float x, float y)
@@ -1041,7 +1101,6 @@ void WSCNet2::on_checkBox_light_clicked()
 void WSCNet2::onThreadFinished()
 {
     ui.textEdit_informationOutput->append(tr("识别完成！"));
-    ui.pushButton_countDroplets->setText(tr("开始识别"));
 
     count_thread->quit();
     count_thread->wait();
@@ -1247,4 +1306,25 @@ void WSCNet2::updateComponentAvailability()
     ui.horizontalSlider_radiusModify->setEnabled(is_horizontal_slider_available);
     ui.horizontalSlider_minRadius->setEnabled(is_horizontal_slider_available);
     ui.horizontalSlider_maxRadius->setEnabled(is_horizontal_slider_available);
+
+
+    if (is_counting_running)
+    {
+		ui.pushButton_countDroplets->setText(tr("识别中..."));
+	}
+    else if (!is_file_chosen)
+    {
+        ui.pushButton_countDroplets->setText(tr("识别当前文件夹"));
+        ui.pushButton_countDroplets->setStyleSheet("background: rgb(173,255,47)");
+	}
+    else if (!is_video)
+    {
+        ui.pushButton_countDroplets->setText(tr("识别当前图像"));
+        ui.pushButton_countDroplets->setStyleSheet("background: rgb(192,192,192)");
+    }
+    else
+    {
+        ui.pushButton_countDroplets->setText(tr("识别当前图像"));
+        ui.pushButton_countDroplets->setStyleSheet("background: rgb(0,206,209)");
+    }
 }

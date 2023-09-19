@@ -29,8 +29,8 @@ void readImgNames(const string& img_path, vector<string>& img_names, const vecto
 	}
 	if (img_names.empty())
 	{
-		cout << "\n fail to find images! \n" << endl;
-		system("pause");
+		//cout << "\n fail to find images! \n" << endl;
+		//system("pause");
 	}
 	_findclose(handle);
 
@@ -41,27 +41,13 @@ int dropFindBright(const Mat& src_gray, const Parameter& param, int dev, ScoreCi
 {
 	// 模板匹配方法
 	vector<vector<Point>> pCountour; //正向二值化处理
-	double min_area = pi * param.min_radius * param.min_radius;
-	double max_area = pi * param.max_radius * param.max_radius;
+	double min_radius = (param.min_radius - dev > 0) ? param.min_radius - dev : 0;
+	double max_radius = param.max_radius - dev;
+	double min_area = pi * min_radius * min_radius;
+	double max_area = pi * max_radius * max_radius;
 	extractContoursBright(src_gray, pCountour, param.kernel_size, param.area_rate, min_area, max_area, param.parameter_adjust);
 	vector<vector<Point>> pCountour_all;  //合并轮廓
 	pCountour_all.insert(pCountour_all.end(), pCountour.begin(), pCountour.end());
-	vector<vector<Point>> sorted_pCountour_all;
-	vector<pair<int, int>> countour_size;
-
-	for (int i = 0; i != pCountour_all.size(); i++)
-	{
-		pair<int, int> sizeWithIndex;
-		sizeWithIndex.first = pCountour_all[i].size();
-		sizeWithIndex.second = i;
-		countour_size.push_back(sizeWithIndex);
-	}
-
-	sort(countour_size.begin(), countour_size.end()); //对轮廓大小排序
-	for (vector<pair<int, int>>::iterator iter = countour_size.begin(); iter != countour_size.end(); iter++)
-	{
-		sorted_pCountour_all.push_back(pCountour_all[iter->second]);
-	}
 
 	Mat drops_img = Mat::zeros(src_gray.size(), src_gray.type());
 	Point2f center;
@@ -109,7 +95,11 @@ int dropFindBright(const Mat& src_gray, const Parameter& param, int dev, ScoreCi
 	Mat src_gray_blur;
 	medianBlur(src_gray, src_gray_blur, 3);
 	double min_dist = param.min_radius + param.max_radius;
-	HoughCircles(src_gray, circles_hough, HOUGH_GRADIENT, 1, 2*param.min_radius, 60.0, 18.0, param.min_radius, param.max_radius);
+	double hough_min_radius = param.min_radius - dev / 2;
+	hough_min_radius = (hough_min_radius > 0) ? hough_min_radius : 0;
+	double hough_max_radius = param.max_radius - dev / 2;
+	hough_max_radius = (hough_max_radius > 0) ? hough_max_radius : 0;
+	HoughCircles(src_gray, circles_hough, HOUGH_GRADIENT, 1, 2*param.min_radius, 60.0, 18.0, hough_min_radius, hough_max_radius);
 	for (const auto& circle_hough : circles_hough)
 	{
 		bool flag = true;
@@ -125,15 +115,18 @@ int dropFindBright(const Mat& src_gray, const Parameter& param, int dev, ScoreCi
 		}
 		if (flag)
 		{
-			circles_add.push_back(circle_hough);
+			count++;
+			final_circles.circles.push_back(make_pair(Point2f(circle_hough[0], circle_hough[1]), circle_hough[2] + dev/2));
+			final_circles.scores.push_back(.0);
+			//circles_add.push_back(circle_hough);
 		}
 	}
-	for (const auto& circle_add : circles_add)
-	{
-		final_circles.circles.push_back(make_pair(Point2f(circle_add[0], circle_add[1]), circle_add[2] + dev/2));
-		final_circles.scores.push_back(.0);
-		count++;
-	}
+	//for (const auto& circle_add : circles_add)
+	//{
+	//	final_circles.circles.push_back(make_pair(Point2f(circle_add[0], circle_add[1]), circle_add[2] + dev/2));
+	//	final_circles.scores.push_back(.0);
+	//	count++;
+	//}
 
 	return count;
 }

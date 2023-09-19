@@ -25,12 +25,21 @@ public:
 
     void setPaintable(bool value); //使能信号
 
-    bool isPaintMode;
-    float centerX,centerY,radius;
+    void setCircle(float x, float y, float r, int drop_state);
+
     int state;  //当前是空包，单包，多包状态
 
 signals:
-    void outputCircle(float,float,float);
+    void outputCircle(float, float, float, int);
 
-    void outputDelete(float,float);
+    void outputDelete(float, float);
+
+    void outputDrag(float, float);
+
+private:
+    float m_x1, m_y1; // 鼠标按下时的坐标
+    float centerX_old, centerY_old; // 拖动前的圆心坐标
+    float centerX, centerY, radius;
+    bool isPaintable, isDeleteMode;
+    Qt::MouseButton m_button;
 };

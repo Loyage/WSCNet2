@@ -10,6 +10,7 @@
 
 #include <fstream>
 #include <direct.h>
+#include <chrono>
 
 #include <opencv2/opencv.hpp>
 
@@ -28,7 +29,7 @@ using namespace std;
 using namespace cv;
 using json = nlohmann::json;
 
-// 在源文件中定义该函数，避免在头文件中包含torch而造成编译时间过长
+// 在源文件中定义该函数，避免在头文件中包含torch而影响编译时长
 void dropMatToTensor(const Mat& drop_img, torch::Tensor& img_tensor);
 
 countDropletsThread::countDropletsThread(QObject* parent) : QThread(parent)
@@ -78,6 +79,7 @@ void countDropletsThread::setParams(bool is_bright_field, int kernel_size, int m
 
 void countDropletsThread::run()
 {
+	auto start_time = chrono::steady_clock::now();
 	bool is_without_module = m_module_path.isEmpty();
 	string img_folder = m_folder_path.toStdString();
 	if (m_count_mode == ECountMode::COUNT_VIDEO)
@@ -98,6 +100,7 @@ void countDropletsThread::run()
 	Parameter param(m_kernel_size, m_min_radius, m_max_radius, area_rate, is_find_overlap, parameter_adjust, visualization, wait_time);
 
 	// load module
+	reportToMain(tr("正在加载分类模型..."));
 	torch::jit::Module clsfy_module;
 	auto device = torch::Device(torch::kCUDA, 0);
 	if (!is_without_module)
@@ -151,7 +154,15 @@ void countDropletsThread::run()
 		emit done();
 	}
 
+	if (img_names.empty())
+	{
+		emit reportToMain("<font color=\"#FF0000\">ERROR</font> " + tr("未能找到图片！"));
+		emit done();
+	}
+
+
 	// main loop
+	reportToMain(tr("模型加载完成，开始识别..."));
 	for (const auto& img_name : img_names)
 	{
 		string img_path = img_folder + img_name;
@@ -181,7 +192,7 @@ void countDropletsThread::run()
 		// 使用模型，进行判别
 		if (!is_without_module)
 		{
-			int drop_label_dict[4] = { -1, 0, 2, 1 }; // 0: empty drop; 1: single drop; 2: multi drop; -1: not a drop
+			int drop_label_dict[4] = { -1, 0, 1, 2 }; // 0: empty drop; 1: single drop; 2: multi drop; -1: not a drop
 			if (drop_num > 0)
 			{
 				// 遍历液滴
@@ -248,6 +259,15 @@ void countDropletsThread::run()
 		framesToVideo();
 	}
 
+	auto end_time = chrono::steady_clock::now();
+	auto duration = chrono::duration_cast<chrono::milliseconds>(end_time - start_time);
+	if (img_names.size() > 1)
+	{
+		reportToMain("Total image count: " + QString::fromStdString(to_string(img_names.size())));
+		reportToMain("Total time: " + QString::fromStdString(to_string(duration.count())) + "ms");
+		reportToMain("Average time: " + QString::fromStdString(to_string(duration.count() / img_names.size())) + "ms");
+	}
+
 	emit done();
 }
 
@@ -263,7 +283,7 @@ void countDropletsThread::videoToFrames(std::string& img_folder)
 		emit reportToMain("<font color=\"#FF0000\">ERROR</font> can't load video data！");
 		emit done();
 	}
-	int frame_num = capture.get(CAP_PROP_FRAME_COUNT);//获取视频针数目(一帧就是一张图片)
+	int frame_num = capture.get(CAP_PROP_FRAME_COUNT);
 
 	Mat frame;
 	for (int i = 0; i < frame_num; i++)

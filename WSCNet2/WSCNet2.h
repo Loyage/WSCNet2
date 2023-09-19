@@ -75,17 +75,19 @@ private slots:
 
     void on_comboBox_function_currentIndexChanged(int index);
 
-    void radiusModify(int value);  //半径偏差显示
+    void radiusModify(int value);       // 半径偏差显示
 
-    void filterByMinRadius(int value); //最小半径过滤
+    void filterByMinRadius(int value);  // 最小半径过滤
 
-    void filterByMaxRadius(int value);//最大半径过滤
+    void filterByMaxRadius(int value);  // 最大半径过滤
 
-    void paintCircle(float centerX, float centerY, float radius); //手动画圆后实时更新槽函数
+    void paintCircle(float centerX, float centerY, float radius, int drop_state); // 手动画圆后实时更新槽函数
+
+    void dragCircle(float centerX, float centerY); // 开始拖动圆槽函数
 
     void deleteCircle(float x, float y);
 
-    void onThreadFinished(); //线程结束
+    void onThreadFinished(); // 识别线程结束
 
 private:
     Ui::WSCNet2Class ui;
