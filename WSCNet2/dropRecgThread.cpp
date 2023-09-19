@@ -1,4 +1,4 @@
-﻿#include "countDropletsThread.h"
+﻿#include "dropRecgThread.h"
 
 #ifdef WIN32
 #pragma execution_character_set("utf-8")
@@ -32,21 +32,21 @@ using json = nlohmann::json;
 // 在源文件中定义该函数，避免在头文件中包含torch而影响编译时长
 void dropMatToTensor(const Mat& drop_img, torch::Tensor& img_tensor);
 
-countDropletsThread::countDropletsThread(QObject* parent) : QThread(parent)
+dropRecgThread::dropRecgThread(QObject* parent) : QThread(parent)
 {
 }
 
-countDropletsThread::~countDropletsThread()
+dropRecgThread::~dropRecgThread()
 {
 }
 
-void countDropletsThread::setPathToSaveResult(QString img_save_folder, QString text_save_folder)
+void dropRecgThread::setPathToSaveResult(QString img_save_folder, QString text_save_folder)
 {
 	m_img_save_folder = img_save_folder;
 	m_text_save_folder = text_save_folder;
 }
 
-void countDropletsThread::setCountObject(ECountMode count_mode, QString path)
+void dropRecgThread::setCountObject(ECountMode count_mode, QString path)
 {
 	m_count_mode = count_mode;
 	if (count_mode == ECountMode::COUNT_FOLDER)
@@ -67,7 +67,7 @@ void countDropletsThread::setCountObject(ECountMode count_mode, QString path)
 	}
 }
 
-void countDropletsThread::setParams(bool is_bright_field, int kernel_size, int min_radius, int max_radius, int dev_bright, QString module_path)
+void dropRecgThread::setParams(bool is_bright_field, int kernel_size, int min_radius, int max_radius, int dev_bright, QString module_path)
 {
 	m_is_bright_field = is_bright_field;
 	m_module_path = module_path;
@@ -77,7 +77,7 @@ void countDropletsThread::setParams(bool is_bright_field, int kernel_size, int m
 	m_max_radius = (float)max_radius;
 }
 
-void countDropletsThread::run()
+void dropRecgThread::run()
 {
 	auto start_time = chrono::steady_clock::now();
 	bool is_without_module = m_module_path.isEmpty();
@@ -271,7 +271,7 @@ void countDropletsThread::run()
 	emit done();
 }
 
-void countDropletsThread::videoToFrames(std::string& img_folder)
+void dropRecgThread::videoToFrames(std::string& img_folder)
 {
 	QString file_pure_name = m_file_name.left(m_file_name.indexOf(".", 0));
 	img_folder = (m_folder_path + file_pure_name + "_frames/").toStdString();
@@ -298,7 +298,7 @@ void countDropletsThread::videoToFrames(std::string& img_folder)
 	capture.release();
 }
 
-void countDropletsThread::framesToVideo()
+void dropRecgThread::framesToVideo()
 {
 	QString file_pure_name = m_file_name.left(m_file_name.indexOf(".", 0));
 	QString file_ext = m_file_name.right(m_file_name.length() - m_file_name.indexOf(".", 0));

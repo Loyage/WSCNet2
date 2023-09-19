@@ -46,7 +46,7 @@
     <ClCompile Include="dropProc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="countDropletsThread.cpp">
+    <ClCompile Include="dropRecgThread.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="dropFuncs.cpp">
@@ -57,7 +57,7 @@
     <QtMoc Include="myqlabel.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="countDropletsThread.h">
+    <QtMoc Include="dropRecgThread.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

@@ -176,7 +176,7 @@ F:\software\Qt\5.14.2\msvc2017_64\lib\Qt5WinExtrasd.lib;F:\project\libtorch\rele
     <QtRcc Include="WSCNet2.qrc" />
     <QtUic Include="WSCNet2.ui" />
     <QtMoc Include="WSCNet2.h" />
-    <ClCompile Include="countDropletsThread.cpp" />
+    <ClCompile Include="dropRecgThread.cpp" />
     <ClCompile Include="dropFuncs.cpp" />
     <ClCompile Include="dropProc.cpp" />
     <ClCompile Include="myqlabel.cpp" />
@@ -187,7 +187,7 @@ F:\software\Qt\5.14.2\msvc2017_64\lib\Qt5WinExtrasd.lib;F:\project\libtorch\rele
     <QtMoc Include="myqlabel.h" />
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="countDropletsThread.h" />
+    <QtMoc Include="dropRecgThread.h" />
     <ClInclude Include="dropFuncs.hpp" />
     <ClInclude Include="dropProc.hpp" />
     <ClInclude Include="includes\nlohmann\json.hpp" />

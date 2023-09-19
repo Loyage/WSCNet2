@@ -3,14 +3,14 @@
 #include <QThread>
 #include <QString>
 
-class countDropletsThread :
+class dropRecgThread :
     public QThread
 {
     Q_OBJECT
 
 public:
-    explicit countDropletsThread(QObject *parent = nullptr);
-    ~countDropletsThread();
+    explicit dropRecgThread(QObject *parent = nullptr);
+    ~dropRecgThread();
 
     enum class ECountMode { COUNT_IMG, COUNT_FOLDER, COUNT_VIDEO, COUNT_UNKNOWN };
 

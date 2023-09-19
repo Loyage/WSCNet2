@@ -27,7 +27,7 @@ public:
 
     void setCircle(float x, float y, float r, int drop_state);
 
-    int state;  //当前是空包，单包，多包状态
+    int m_state;  //当前是空包，单包，多包状态
 
 signals:
     void outputCircle(float, float, float, int);
@@ -38,8 +38,8 @@ signals:
 
 private:
     float m_x1, m_y1; // 鼠标按下时的坐标
-    float centerX_old, centerY_old; // 拖动前的圆心坐标
-    float centerX, centerY, radius;
-    bool isPaintable, isDeleteMode;
+    float m_centerX_old, m_centerY_old; // 拖动前的圆心坐标
+    float m_centerX, m_centerY, m_radius;
+    bool m_is_paintable, m_is_deleteMode;
     Qt::MouseButton m_button;
 };

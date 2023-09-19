@@ -162,7 +162,7 @@ void WSCNet2::on_pushButton_chooseImage_clicked()
 		    return;
 	    }
 
-        if (checkFileType(m_file_chosen_path) == countDropletsThread::ECountMode::COUNT_UNKNOWN)
+        if (checkFileType(m_file_chosen_path) == dropRecgThread::ECountMode::COUNT_UNKNOWN)
         {
             QMessageBox::warning(this, "ERROR", tr("未知的图片类型"), QMessageBox::Ok);
             m_file_chosen_path = "";
@@ -190,13 +190,13 @@ void WSCNet2::on_lineEdit_imageName_textChanged(const QString& text)
     {
         auto file_type = checkFileType(m_file_chosen_path);
         // 未知文件类型
-        if (file_type == countDropletsThread::ECountMode::COUNT_UNKNOWN)
+        if (file_type == dropRecgThread::ECountMode::COUNT_UNKNOWN)
         {
 			ui.textEdit_informationOutput->append("<font color=\"#FF0000\">ERROR</font> Unkown file type！");
 			return;
 		}
         // 图片地址
-        else if (file_type == countDropletsThread::ECountMode::COUNT_IMG)
+        else if (file_type == dropRecgThread::ECountMode::COUNT_IMG)
         {
             QImage currentImage;
             currentImage.load(m_file_chosen_path);
@@ -238,7 +238,7 @@ void WSCNet2::on_lineEdit_imageName_textChanged(const QString& text)
             }
         }
         // 视频地址
-        else if (file_type == countDropletsThread::ECountMode::COUNT_VIDEO)
+        else if (file_type == dropRecgThread::ECountMode::COUNT_VIDEO)
         {
 			m_circle_result.clear();
 			m_accu_circle_results.clear();
@@ -399,6 +399,7 @@ void WSCNet2::on_lineEdit_labelText_textChanged(const QString& text)
     }
     else
     {
+        m_cur_img.release();
         ui.textEdit_informationOutput->append("Clear chosen label.");//输出
     }
     imgDisplay(m_circle_result); //标注改变，发生信号
@@ -420,10 +421,10 @@ void WSCNet2::on_pushButton_countDroplets_clicked()
         ui.textEdit_informationOutput->append("<font color=\"#FF8000\">WARNING</font> Module path is none, will only do segmentation. \n");
     }
 
-    count_thread = new countDropletsThread();
+    count_thread = new dropRecgThread();
     count_thread->setPathToSaveResult(mk_img_res_folder_name, mk_label_res_folder_name);
     count_thread->setParams(is_bright_field, kernel_size, min_radius, max_radius, radius_modify, module_path);
-    connect(count_thread, &countDropletsThread::reportToMain, this, [=](QString message) {
+    connect(count_thread, &dropRecgThread::reportToMain, this, [=](QString message) {
         ui.textEdit_informationOutput->append(message);
         });
     connect(count_thread, SIGNAL(done()), this, SLOT(onThreadFinished()));
@@ -431,20 +432,20 @@ void WSCNet2::on_pushButton_countDroplets_clicked()
     if (ui.lineEdit_imageName->text() == "" || ui.lineEdit_imageName->text() == "\t") // 识别整个文件夹
     {
         ui.textEdit_informationOutput->append(tr("开始识别当前文件夹下所有图像，请耐心等待..."));
-        count_thread->setCountObject(countDropletsThread::ECountMode::COUNT_FOLDER, m_workplace_path);
+        count_thread->setCountObject(dropRecgThread::ECountMode::COUNT_FOLDER, m_workplace_path);
 	}
     else // 识别单张图片或视频
     {
         auto file_type = checkFileType(m_workplace_path + m_file_chosen_path);
-        if (file_type == countDropletsThread::ECountMode::COUNT_IMG)
+        if (file_type == dropRecgThread::ECountMode::COUNT_IMG)
         {
             ui.textEdit_informationOutput->append(tr("开始识别当前图像."));
-            count_thread->setCountObject(countDropletsThread::ECountMode::COUNT_IMG, m_workplace_path + ui.lineEdit_imageName->text());
+            count_thread->setCountObject(dropRecgThread::ECountMode::COUNT_IMG, m_workplace_path + ui.lineEdit_imageName->text());
         }
-        else if (file_type == countDropletsThread::ECountMode::COUNT_VIDEO)
+        else if (file_type == dropRecgThread::ECountMode::COUNT_VIDEO)
         {
             ui.textEdit_informationOutput->append(tr("开始识别当前视频."));
-            count_thread->setCountObject(countDropletsThread::ECountMode::COUNT_VIDEO, m_workplace_path + ui.lineEdit_imageName->text());
+            count_thread->setCountObject(dropRecgThread::ECountMode::COUNT_VIDEO, m_workplace_path + ui.lineEdit_imageName->text());
 		}
         else
         {
@@ -1076,7 +1077,7 @@ void WSCNet2::on_toolButton_zoomOut_clicked()
 
 void WSCNet2::on_comboBox_function_currentIndexChanged(int index)
 {
-    myqlabel_showImg->state = index;
+    myqlabel_showImg->m_state = index;
 }
 
 void WSCNet2::on_checkBox_light_clicked()
@@ -1110,7 +1111,7 @@ void WSCNet2::onThreadFinished()
     if (ui.lineEdit_imageName->text().size()) // 将最新的图像识别结果进行展示
     {
         auto file_type = checkFileType(ui.lineEdit_imageName->text());
-        if (file_type == countDropletsThread::ECountMode::COUNT_IMG)
+        if (file_type == dropRecgThread::ECountMode::COUNT_IMG)
         {
             QString text = ui.lineEdit_imageName->text();
             QString img_name = QString::fromStdString(text.toStdString().substr(0, text.toStdString().find_last_of(".")));
@@ -1240,7 +1241,7 @@ void WSCNet2::savePramsToJson()
     f_json.close();
 }
 
-auto WSCNet2::checkFileType(const QString& file_path) -> countDropletsThread::ECountMode
+auto WSCNet2::checkFileType(const QString& file_path) -> dropRecgThread::ECountMode
 {
     if (
         file_path.endsWith(".bmp") ||
@@ -1250,7 +1251,7 @@ auto WSCNet2::checkFileType(const QString& file_path) -> countDropletsThread::EC
         file_path.endsWith(".tif")
         )
     {
-        return countDropletsThread::ECountMode::COUNT_IMG;
+        return dropRecgThread::ECountMode::COUNT_IMG;
     }
     else if (
         file_path.endsWith(".mp4") ||
@@ -1262,11 +1263,11 @@ auto WSCNet2::checkFileType(const QString& file_path) -> countDropletsThread::EC
         file_path.endsWith(".webm")
         )
     {
-		return countDropletsThread::ECountMode::COUNT_VIDEO;
+		return dropRecgThread::ECountMode::COUNT_VIDEO;
 	}
     else
     {
-        return countDropletsThread::ECountMode::COUNT_UNKNOWN;
+        return dropRecgThread::ECountMode::COUNT_UNKNOWN;
     }
 }
 
@@ -1278,7 +1279,7 @@ void WSCNet2::updateComponentAvailability()
     const bool is_module_chosen = !ui.lineEdit_moduleName->text().isEmpty();
     const bool is_editing_mode = ui.checkBox_editImage->isChecked();
     const bool is_manual_mode = ui.checkBox_manual->isChecked();
-    const bool is_video = countDropletsThread::ECountMode::COUNT_VIDEO == 
+    const bool is_video = dropRecgThread::ECountMode::COUNT_VIDEO == 
         checkFileType(ui.lineEdit_workPlace->text() + ui.lineEdit_imageName->text());
     const bool is_delete_drops = ui.checkBox_deleteDrops->isChecked();
 

@@ -6,7 +6,7 @@
 #include <QtWidgets/QWidget>
 #include <opencv2/opencv.hpp>
 #include "myqlabel.h"
-#include "countDropletsThread.h"
+#include "dropRecgThread.h"
 #include "includes/nlohmann/json.hpp"
 
 typedef std::pair<cv::Point2f, float> CIRCLE; //标注圆数据类型，包括圆心，半径
@@ -91,7 +91,7 @@ private slots:
 
 private:
     Ui::WSCNet2Class ui;
-    countDropletsThread* count_thread = nullptr; // 液滴计数线程
+    dropRecgThread* count_thread = nullptr; // 液滴计数线程
     Myqlabel* myqlabel_showImg; // 用于显示图片的label
 
     int m_edit_flag;            // 编辑模式下不同参数修改的m_edit_flag
@@ -122,7 +122,7 @@ private:
 
     cv::Mat QImageToMat(QImage image);
     QImage MatToQImage(const cv::Mat& mat);
-    auto checkFileType(const QString& file_path) -> countDropletsThread::ECountMode; // 检查文件类型
+    auto checkFileType(const QString& file_path) -> dropRecgThread::ECountMode; // 检查文件类型
     void imgDisplay(std::vector<dropType> circles); // 标注修改后更新图像显示
     void loadParamsFromJson(); // 从json文件中读取参数
     void savePramsToJson(); // 保存参数到json文件
