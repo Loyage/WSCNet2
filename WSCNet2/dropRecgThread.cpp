@@ -79,7 +79,6 @@ void dropRecgThread::setParams(bool is_bright_field, int kernel_size, int min_ra
 
 void dropRecgThread::run()
 {
-	auto start_time = chrono::steady_clock::now();
 	bool is_without_module = m_module_path.isEmpty();
 	string img_folder = m_folder_path.toStdString();
 	if (m_count_mode == ECountMode::COUNT_VIDEO)
@@ -163,6 +162,7 @@ void dropRecgThread::run()
 
 	// main loop
 	reportToMain(tr("模型加载完成，开始识别..."));
+	auto start_time = chrono::steady_clock::now();
 	for (const auto& img_name : img_names)
 	{
 		string img_path = img_folder + img_name;

@@ -40,7 +40,7 @@ void readImgNames(const string& img_path, vector<string>& img_names, const vecto
 int dropFindBright(const Mat& src_gray, const Parameter& param, int dev, ScoreCircle& final_circles)
 {
 	// 模板匹配方法
-	vector<vector<Point>> pCountour; //正向二值化处理
+	vector<vector<Point>> pCountour;
 	double min_radius = (param.min_radius - dev > 0) ? param.min_radius - dev : 0;
 	double max_radius = param.max_radius - dev;
 	double min_area = pi * min_radius * min_radius;
@@ -63,6 +63,8 @@ int dropFindBright(const Mat& src_gray, const Parameter& param, int dev, ScoreCi
 			continue;
 
 		minEnclosingCircle(Mat(pCountour_all[i]), center, radius);
+		if (radius < min_radius || radius > max_radius) //液滴大小过滤，半径
+			continue;
 		area_circle = 3.1416 * radius * radius;
 		area_rate = area / area_circle;
 		if (area_rate < param.area_rate) //拟合成圆的像素面积占比过滤
@@ -82,7 +84,9 @@ int dropFindBright(const Mat& src_gray, const Parameter& param, int dev, ScoreCi
 		}
 		count++;
 
-		drawContours(drops_img, pCountour_all, i, Scalar(255), -1);
+		//drawContours(drops_img, pCountour_all, i, Scalar(255), -1);
+		//imshow("drops_img", drops_img);
+		//waitKey();
 
 		final_circles.circles.push_back(make_pair(center, radius + dev));
 		final_circles.scores.push_back(.0);

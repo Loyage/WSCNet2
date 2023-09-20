@@ -80,7 +80,7 @@ WSCNet2::WSCNet2(QWidget *parent)
     clearActionModule->setIcon(QApplication::style()->standardIcon(QStyle::SP_LineEditClearButton));
     pLineEdit = ui.lineEdit_moduleName;
     pLineEdit->addAction(clearActionModule, QLineEdit::TrailingPosition);
-    connect(clearActionLabel, &QAction::triggered, pLineEdit, [pLineEdit] { pLineEdit->setText(""); });
+    connect(clearActionModule, &QAction::triggered, pLineEdit, [pLineEdit] { pLineEdit->setText(""); });
 
     // 如果没有配置文件，则创建配置文件
     if (!QFile::exists("./WSCNet2.ini"))
@@ -255,6 +255,7 @@ void WSCNet2::imgDisplay(vector<dropType> circles)
 {
     if (m_cur_img.empty())
     {
+        ui.textEdit_informationOutput->append("current image is empty!");
         myqlabel_showImg->clear();
         return;
 	}
@@ -399,7 +400,6 @@ void WSCNet2::on_lineEdit_labelText_textChanged(const QString& text)
     }
     else
     {
-        m_cur_img.release();
         ui.textEdit_informationOutput->append("Clear chosen label.");//输出
     }
     imgDisplay(m_circle_result); //标注改变，发生信号
