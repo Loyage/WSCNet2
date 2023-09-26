@@ -122,15 +122,8 @@ int dropFindBright(const Mat& src_gray, const Parameter& param, int dev, ScoreCi
 			count++;
 			final_circles.circles.push_back(make_pair(Point2f(circle_hough[0], circle_hough[1]), circle_hough[2] + dev/2));
 			final_circles.scores.push_back(.0);
-			//circles_add.push_back(circle_hough);
 		}
 	}
-	//for (const auto& circle_add : circles_add)
-	//{
-	//	final_circles.circles.push_back(make_pair(Point2f(circle_add[0], circle_add[1]), circle_add[2] + dev/2));
-	//	final_circles.scores.push_back(.0);
-	//	count++;
-	//}
 
 	return count;
 }

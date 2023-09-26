@@ -2,6 +2,7 @@
 
 #include "ui_WSCNet2.h"
 
+#include <qtranslator.h>
 #include <QStringList>
 #include <QtWidgets/QWidget>
 #include <opencv2/opencv.hpp>
@@ -73,6 +74,8 @@ private slots:
 
     void on_checkBox_light_clicked();
 
+    void on_comboBox_language_currentIndexChanged(int index);
+
     void on_comboBox_function_currentIndexChanged(int index);
 
     void radiusModify(int value);       // 半径偏差显示
@@ -93,6 +96,7 @@ private:
     Ui::WSCNet2Class ui;
     dropRecgThread* count_thread = nullptr; // 液滴计数线程
     Myqlabel* myqlabel_showImg; // 用于显示图片的label
+    QTranslator* m_translator;    // 翻译器
 
     int m_edit_flag;            // 编辑模式下不同参数修改的m_edit_flag
     int m_radius_modify_record; // 半径偏差记录
@@ -127,4 +131,5 @@ private:
     void loadParamsFromJson(); // 从json文件中读取参数
     void savePramsToJson(); // 保存参数到json文件
     void updateComponentAvailability(); // 更新组件可用性
+    void printDropMessages(); // 打印液滴信息
 };

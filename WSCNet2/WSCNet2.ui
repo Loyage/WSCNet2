@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>860</width>
+    <width>879</width>
     <height>562</height>
    </rect>
   </property>
@@ -356,7 +356,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>120</width>
+         <width>150</width>
          <height>0</height>
         </size>
        </property>
@@ -381,7 +381,7 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>120</width>
+         <width>150</width>
          <height>0</height>
         </size>
        </property>
@@ -470,7 +470,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>444</width>
+          <width>463</width>
           <height>398</height>
          </rect>
         </property>
@@ -543,6 +543,12 @@
        </item>
        <item>
         <widget class="QComboBox" name="comboBox_function">
+         <property name="minimumSize">
+          <size>
+           <width>110</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="font">
           <font>
            <family>微软雅黑</family>
@@ -590,7 +596,7 @@
      <item row="0" column="2">
       <layout class="QHBoxLayout" name="horizontalLayout_5">
        <item>
-        <widget class="QComboBox" name="comboBox">
+        <widget class="QComboBox" name="comboBox_language">
          <property name="font">
           <font>
            <family>微软雅黑</family>

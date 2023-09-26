@@ -85,22 +85,30 @@ WSCNet2::WSCNet2(QWidget *parent)
     // 如果没有配置文件，则创建配置文件
     if (!QFile::exists("./WSCNet2.ini"))
     {
-		QSettings settings("./WSCNet2.ini", QSettings::IniFormat);
-		settings.setIniCodec(QTextCodec::codecForName("UTF-8"));
-		settings.setValue("PATH/last_workplace", "C:/");
+        QSettings settings("./WSCNet2.ini", QSettings::IniFormat);
+        settings.setIniCodec(QTextCodec::codecForName("UTF-8"));
+        settings.setValue("PATH/last_workplace", "C:/");
         settings.setValue("General/language", "zh-cn");
-		settings.sync();
-	}
+        settings.sync();
+    }
     
     // 读取上次软件关闭时工作地址
     QSettings settings("./WSCNet2.ini", QSettings::IniFormat);
     m_workplace_path = settings.value("PATH/last_workplace").toString();
-    // 加载默认语言配置 TODO
+    // 加载默认语言配置
+    m_translator = new QTranslator;
+    if (settings.value("General/language").toString() == "en")
+    {
+        m_translator->load("./Translate_EN.qm");
+		qApp->installTranslator(m_translator);
+        ui.comboBox_language->setCurrentIndex(1);
+	}
 }
 
 WSCNet2::~WSCNet2()
 {
     delete myqlabel_showImg;
+    delete m_translator;
 }
 
 void WSCNet2::on_pushButton_chooseWorkPlace_clicked()
@@ -140,7 +148,7 @@ void WSCNet2::on_pushButton_chooseWorkPlace_clicked()
     }
     else
     {
-        ui.textEdit_informationOutput->append("The work place has no images.");//输出
+        ui.textEdit_informationOutput->append("<font color=\"#FF8000\">WARNING</font> The work place has no images.");//输出
     }
 
     loadParamsFromJson();
@@ -159,8 +167,8 @@ void WSCNet2::on_pushButton_chooseImage_clicked()
         if (file_path != work_place) // 防止图片不在当前文件夹
         {
             QMessageBox::warning(this, "Warning", tr("图像不在当前文件夹，请重新选择！"), QMessageBox::Ok);
-		    return;
-	    }
+            return;
+        }
 
         if (checkFileType(m_file_chosen_path) == dropRecgThread::ECountMode::COUNT_UNKNOWN)
         {
@@ -169,9 +177,9 @@ void WSCNet2::on_pushButton_chooseImage_clicked()
         }
         else
         {
-            ui.textEdit_informationOutput->append("The image/video is set to " + m_file_chosen_path + "\n");//输出
             string imageNameS = m_file_chosen_path.toStdString().substr(workPlaceAddress.size(), m_file_chosen_path.size() - workPlaceAddress.size());
             QString imageName = QString::fromStdString(imageNameS);
+            ui.textEdit_informationOutput->append("The image/video is set to " + imageName);//输出
             ui.lineEdit_imageName->setText(imageName);
         }
     }
@@ -180,21 +188,21 @@ void WSCNet2::on_pushButton_chooseImage_clicked()
 void WSCNet2::on_lineEdit_imageName_textChanged(const QString& text)
 {
     m_file_chosen_path = ui.lineEdit_workPlace->text() + text;
-	if (!text.size()) // 清空
+    if (!text.size()) // 清空
     {
         ui.textEdit_informationOutput->append("Clear chosen image.");//输出
         ui.lineEdit_labelText->clear();
         m_cur_img.release();
-	}
+    }
     else
     {
         auto file_type = checkFileType(m_file_chosen_path);
         // 未知文件类型
         if (file_type == dropRecgThread::ECountMode::COUNT_UNKNOWN)
         {
-			ui.textEdit_informationOutput->append("<font color=\"#FF0000\">ERROR</font> Unkown file type！");
-			return;
-		}
+            ui.textEdit_informationOutput->append("<font color=\"#FF0000\">ERROR</font> Unkown file type！");
+            return;
+        }
         // 图片地址
         else if (file_type == dropRecgThread::ECountMode::COUNT_IMG)
         {
@@ -223,29 +231,29 @@ void WSCNet2::on_lineEdit_imageName_textChanged(const QString& text)
             {
                 modified_label_file.close();
                 ui.lineEdit_labelText->setText(img_name + "_modified.txt");
-                ui.textEdit_informationOutput->append("Load modified label file: " + modified_label_add + "\n");
+                ui.textEdit_informationOutput->append("Load modified label file.");
             }
             else if (label_file.good())// else load generated label file
             {
                 label_file.close();
                 ui.lineEdit_labelText->setText(img_name + "_drops.txt");
-                ui.textEdit_informationOutput->append("Load generated label file: " + label_add + "\n");
+                ui.textEdit_informationOutput->append("Load generated label file.");
             }
             else
             {
-                ui.textEdit_informationOutput->append("WARNING: No label file found. \n");
+                ui.textEdit_informationOutput->append("<font color=\"#FF8000\">WARNING</font> No label file found. \n");
                 imgDisplay(m_circle_result);
             }
         }
         // 视频地址
         else if (file_type == dropRecgThread::ECountMode::COUNT_VIDEO)
         {
-			m_circle_result.clear();
-			m_accu_circle_results.clear();
-			m_edit_circle_result.clear();
-			ui.checkBox_manual->setChecked(false);
-			ui.checkBox_deleteDrops->setChecked(false);
-		}
+            m_circle_result.clear();
+            m_accu_circle_results.clear();
+            m_edit_circle_result.clear();
+            ui.checkBox_manual->setChecked(false);
+            ui.checkBox_deleteDrops->setChecked(false);
+        }
     }
 
     updateComponentAvailability(); // 更新组件可用性
@@ -258,7 +266,7 @@ void WSCNet2::imgDisplay(vector<dropType> circles)
         ui.textEdit_informationOutput->append("current image is empty!");
         myqlabel_showImg->clear();
         return;
-	}
+    }
 
     m_cur_img.copyTo(m_cur_img_display);
     Mat showImg;
@@ -272,64 +280,28 @@ void WSCNet2::imgDisplay(vector<dropType> circles)
     }
 
     Scalar showColor;
-    int nonCount(0);
-    int singleCount(0);
-    int multiCount(0);
-    int wrongCount(0);
-    vector<double> dropDiam; //液滴直径
-
-    float mean(0.0); //平均直径
-    float cvVelue(0.0); //cv值
-    float singleRate(0.0);//单包率
-    float singleAll(0.0);
 
     for (int i = 0; i != circles.size(); i++)
     {
         if (0 == circles[i].second)
         {
-            nonCount++;
             showColor = mk_color_empty_drop;
         }
         else if (1 == circles[i].second)
         {
-            singleCount++;
             showColor = mk_color_single_drop;
         }
         else if (2 == circles[i].second)
         {
-            multiCount++;
             showColor = mk_color_multi_drop;
         }
         else if (-1 == circles[i].second)//非液滴
         {
-            wrongCount++;
             continue;
         }
 
-        dropDiam.push_back(circles[i].first.second * 2);
         circle(m_cur_img_display, circles[i].first.first, circles[i].first.second, showColor, 1);
         circle(showImg, circles[i].first.first, circles[i].first.second, showColor, 1);
-    }
-    //计算液滴平均半径和cv
-    if (!dropDiam.empty())
-    {
-        float sum = accumulate(begin(dropDiam), end(dropDiam), 0.0);
-        mean = sum / dropDiam.size(); //均值
-
-        float accum = 0.0;
-        for_each(begin(dropDiam), end(dropDiam), [&](const double d) {
-            accum += (d - mean) * (d - mean);
-            });
-
-        float stdev = sqrt(accum / (dropDiam.size() - 1)); //方差
-        cvVelue = stdev / mean;
-
-        singleRate = (float)singleCount / (float)circles.size();
-
-        if ((singleCount + multiCount) != 0)
-        {
-            singleAll = (float)singleCount / (float)(singleCount + multiCount);
-        }
     }
 
     cv::resize(showImg, showImg, Size(showImg.cols * m_zoom, showImg.rows * m_zoom));
@@ -341,18 +313,6 @@ void WSCNet2::imgDisplay(vector<dropType> circles)
     myqlabel_showImg->setPixmap(QPixmap::fromImage(currentImage));
     myqlabel_showImg->resize(QSize(currentImage.width(), currentImage.height()));
     ui.scrollArea->setWidget(myqlabel_showImg);  //图片过大加上滚轮
-
-    //ui.textEdit_informationOutput->append("-------------------------------------------------");
-    //ui.textEdit_informationOutput->append("当前共有" + QString::number(circles.size() - wrongCount) + "个液滴。");
-    //ui.textEdit_informationOutput->append("当前有" + QString::number(nonCount) + "个0包液滴。");
-    //ui.textEdit_informationOutput->append("当前有" + QString::number(singleCount) + "个单包液滴。");
-    //ui.textEdit_informationOutput->append("当前有" + QString::number(multiCount) + "个多包液滴。");
-    //ui.textEdit_informationOutput->append("当前单包率为" + QString("%1").arg(singleRate));
-    //ui.textEdit_informationOutput->append("当前（单细胞/总细胞）为" + QString("%1").arg(singleAll));
-    //ui.textEdit_informationOutput->append("当前液滴平均直径" + QString("%1").arg(mean) + "像素");
-    //ui.textEdit_informationOutput->append("当前液滴CV值" + QString("%1").arg(cvVelue));
-    //ui.textEdit_informationOutput->append("-------------------------------------------------");
-
 }
 
 void WSCNet2::on_pushButton_chooseLabelText_clicked()
@@ -378,8 +338,6 @@ void WSCNet2::on_lineEdit_labelText_textChanged(const QString& text)
     ui.checkBox_manual->setChecked(false);
     if (text.size())
     {
-        ui.textEdit_informationOutput->append("The label address is set to " + labelFileAddress + "\n");//输出
-
         //读取txt
         ifstream infile;
         dropType circles_txt;
@@ -404,6 +362,7 @@ void WSCNet2::on_lineEdit_labelText_textChanged(const QString& text)
     }
     imgDisplay(m_circle_result); //标注改变，发生信号
 
+    printDropMessages();
     updateComponentAvailability(); // 更新组件可用性
 }
 
@@ -433,7 +392,7 @@ void WSCNet2::on_pushButton_countDroplets_clicked()
     {
         ui.textEdit_informationOutput->append(tr("开始识别当前文件夹下所有图像，请耐心等待..."));
         count_thread->setCountObject(dropRecgThread::ECountMode::COUNT_FOLDER, m_workplace_path);
-	}
+    }
     else // 识别单张图片或视频
     {
         auto file_type = checkFileType(m_workplace_path + m_file_chosen_path);
@@ -446,12 +405,12 @@ void WSCNet2::on_pushButton_countDroplets_clicked()
         {
             ui.textEdit_informationOutput->append(tr("开始识别当前视频."));
             count_thread->setCountObject(dropRecgThread::ECountMode::COUNT_VIDEO, m_workplace_path + ui.lineEdit_imageName->text());
-		}
+        }
         else
         {
-			ui.textEdit_informationOutput->append("<font color=\"#FF0000\">ERROR</font> Unkown file type！");
-			return;
-		}
+            ui.textEdit_informationOutput->append("<font color=\"#FF0000\">ERROR</font> Unkown file type！");
+            return;
+        }
     }
     updateComponentAvailability(); // 更新组件可用性
     count_thread->start();
@@ -481,7 +440,7 @@ void WSCNet2::on_checkBox_editImage_clicked()
 
         ui.horizontalSlider_radiusModify->setRange(radius_modify - 10, radius_modify + 10);
         ui.horizontalSlider_radiusModify->setValue(radius_modify);
-		ui.horizontalSlider_minRadius->setRange(minRadius - 20, minRadius + 20);
+        ui.horizontalSlider_minRadius->setRange(minRadius - 20, minRadius + 20);
         ui.horizontalSlider_minRadius->setValue(minRadius);
         ui.horizontalSlider_maxRadius->setRange(maxRadius - 20, maxRadius + 20);
         ui.horizontalSlider_maxRadius->setValue(maxRadius);
@@ -574,7 +533,6 @@ void WSCNet2::filterByMaxRadius(int value) //最大半径过滤
             m_edit_circle_result.push_back(curCircles[i]);
         }
     }
-    //ui.textEdit_informationOutput->append("当前有"+QString::number(m_edit_circle_result.size())+"个液滴。");
     imgDisplay(m_edit_circle_result);
     m_edit_flag = 3;
 
@@ -661,7 +619,6 @@ void WSCNet2::paintCircle(float centerX, float centerY, float radius, int drop_s
         if (ui.checkBox_deleteDrops->isChecked())//删除液滴
         {
             m_edit_circle_result.erase(m_edit_circle_result.begin() + disWithRadius[0].second);
-            //ui.textEdit_informationOutput->append("当前有" + QString::number(m_edit_circle_result.size()) + "个液滴。");
             imgDisplay(m_edit_circle_result);
         }
         else if (ui.comboBox_function->currentIndex() == 0)//标注空包
@@ -778,7 +735,6 @@ void WSCNet2::deleteCircle(float x, float y)
     else //非标注情况：双击表示删除液滴
     {
         m_edit_circle_result.erase(m_edit_circle_result.begin() + disWithRadius[0].second);
-        //ui.textEdit_informationOutput->append("当前有" + QString::number(m_edit_circle_result.size()) + "个液滴。");
         imgDisplay(m_edit_circle_result);
         m_accu_circle_results.back() = m_edit_circle_result;
     }
@@ -990,8 +946,8 @@ void WSCNet2::on_toolButton_lastImg_clicked()
     if (m_img_name_list.size() == 0) // 当前文件夹没有图像
     {
         QMessageBox::information(NULL, "ERROR", tr("当前文件夹没有图像，请重新设置！"));
-		return;
-	}
+        return;
+    }
 
     QString img_text = ui.lineEdit_imageName->text();
     if (img_text.size() == 0) // 当前未设置图像，直接显示最后一张图像
@@ -1009,13 +965,13 @@ void WSCNet2::on_toolButton_lastImg_clicked()
     else if (img_index == 0)
     {
         QMessageBox::information(NULL, "WARNING", tr("当前已经是第一张图像！"));
-		return;
-	}
+        return;
+    }
     else
     {
-		img_index--;
-		ui.lineEdit_imageName->setText(m_img_name_list[img_index]);
-	}
+        img_index--;
+        ui.lineEdit_imageName->setText(m_img_name_list[img_index]);
+    }
 }
 
 void WSCNet2::on_toolButton_nextImg_clicked()
@@ -1030,8 +986,8 @@ void WSCNet2::on_toolButton_nextImg_clicked()
     if (img_text.size() == 0) // 当前未设置图像，直接显示第一张图像
     {
         ui.lineEdit_imageName->setText(m_img_name_list[0]);
-		return;
-	}
+        return;
+    }
 
     int img_index = m_img_name_list.indexOf(ui.lineEdit_imageName->text());
     if (img_index == -1)
@@ -1053,26 +1009,46 @@ void WSCNet2::on_toolButton_nextImg_clicked()
 
 void WSCNet2::on_toolButton_zoomIn_clicked()
 {
-	if (m_cur_img.empty())
-		return;
-	m_zoom += 0.1;
-	imgDisplay(m_circle_result);
+    if (m_cur_img.empty())
+        return;
+    m_zoom += 0.1;
+    imgDisplay(m_circle_result);
 }
 
 void WSCNet2::on_toolButton_zoomReset_clicked()
 {
-	if (m_cur_img.empty())
-		return;
-	m_zoom = 1.0;
-	imgDisplay(m_circle_result);
+    if (m_cur_img.empty())
+        return;
+    m_zoom = 1.0;
+    imgDisplay(m_circle_result);
 }
 
 void WSCNet2::on_toolButton_zoomOut_clicked()
 {
-	if (m_cur_img.empty())
-		return;
-	m_zoom -= 0.1;
-	imgDisplay(m_circle_result);
+    if (m_cur_img.empty())
+        return;
+    m_zoom -= 0.1;
+    imgDisplay(m_circle_result);
+}
+
+void WSCNet2::on_comboBox_language_currentIndexChanged(int index)
+{
+    QSettings settings("./WSCNet2.ini", QSettings::IniFormat);
+
+    m_translator->load("./Translate_EN.qm");
+    if (index == 0)
+    {
+        qApp->removeTranslator(m_translator);
+        settings.setValue("General/language", "zh-cn");
+    }
+    else
+    {
+        qApp->installTranslator(m_translator);
+        settings.setValue("General/language", "en");
+    }
+	ui.retranslateUi(this);
+
+    settings.sync();
 }
 
 void WSCNet2::on_comboBox_function_currentIndexChanged(int index)
@@ -1197,7 +1173,6 @@ void WSCNet2::loadParamsFromJson()
     if (!QFile::exists(path_json))
     {
         ui.textEdit_informationOutput->append("<font color=\"#FF8000\">WARNING</font> " + tr("当前目录下未找到param.json，使用默认参数代替！"));
-        //ui.textEdit_informationOutput->append("<font color=\"#FF8000\">WARNING</font> Unable to find param.json, will use default params");
         savePramsToJson();
         return;
     }
@@ -1208,9 +1183,9 @@ void WSCNet2::loadParamsFromJson()
         json data_json = json::parse(f_json);
 
         if (data_json["is_bright_field"].get<bool>())
-			ui.radioButton_bright->setChecked(true);
+            ui.radioButton_bright->setChecked(true);
         else
-			ui.radioButton_dark->setChecked(true);
+            ui.radioButton_dark->setChecked(true);
 
         ui.spinBox_kernelSize->setValue(data_json["kernel_size"].get<int>());
         ui.spinBox_radiusModify->setValue(data_json["dev_bright"].get<int>());
@@ -1263,8 +1238,8 @@ auto WSCNet2::checkFileType(const QString& file_path) -> dropRecgThread::ECountM
         file_path.endsWith(".webm")
         )
     {
-		return dropRecgThread::ECountMode::COUNT_VIDEO;
-	}
+        return dropRecgThread::ECountMode::COUNT_VIDEO;
+    }
     else
     {
         return dropRecgThread::ECountMode::COUNT_UNKNOWN;
@@ -1311,13 +1286,13 @@ void WSCNet2::updateComponentAvailability()
 
     if (is_counting_running)
     {
-		ui.pushButton_countDroplets->setText(tr("识别中..."));
-	}
+        ui.pushButton_countDroplets->setText(tr("识别中..."));
+    }
     else if (!is_file_chosen)
     {
         ui.pushButton_countDroplets->setText(tr("识别当前文件夹"));
         ui.pushButton_countDroplets->setStyleSheet("background: rgb(173,255,47)");
-	}
+    }
     else if (!is_video)
     {
         ui.pushButton_countDroplets->setText(tr("识别当前图像"));
@@ -1328,4 +1303,79 @@ void WSCNet2::updateComponentAvailability()
         ui.pushButton_countDroplets->setText(tr("识别当前图像"));
         ui.pushButton_countDroplets->setStyleSheet("background: rgb(0,206,209)");
     }
+}
+
+void WSCNet2::printDropMessages()
+{
+    if (m_circle_result.empty())
+        return;
+
+    Scalar showColor;
+    int allCount = m_circle_result.size();
+    int nonCount = 0;
+    int singleCount = 0;
+    int multiCount = 0;
+    int wrongCount = 0;
+    vector<double> dropDiam; //液滴半径
+
+    float mean = .0; //平均直径
+    float cvVelue = .0; //cv值
+    float singleRate = .0;//单包率
+    float singleAll = .0;
+
+    for (const auto& circle_result : m_circle_result)
+    {
+        switch (circle_result.second)
+        {
+            case -1:
+                wrongCount++;
+                continue;
+                break;
+            case 0:
+                nonCount++;
+                break;
+            case 1:
+                singleCount++;
+                break;
+            case 2:
+                multiCount++;
+                break;
+            default:
+                break;
+        }
+
+        dropDiam.push_back(circle_result.first.second);
+    }
+    //计算液滴平均半径和cv
+    if (!dropDiam.empty())
+    {
+        float sum = accumulate(begin(dropDiam), end(dropDiam), 0.0);
+        mean = sum / dropDiam.size(); //均值
+
+        float accum = 0.0;
+        for_each(begin(dropDiam), end(dropDiam), [&](const double d) {
+            accum += (d - mean) * (d - mean);
+            });
+
+        float stdev = sqrt(accum / (dropDiam.size() - 1)); //方差
+        cvVelue = stdev / mean;
+
+        singleRate = (float)singleCount / (float)m_circle_result.size();
+
+        if ((singleCount + multiCount) != 0)
+        {
+            singleAll = (float)singleCount / (float)(singleCount + multiCount);
+        }
+    }
+
+    ui.textEdit_informationOutput->append("-------------------------------------------------");
+    ui.textEdit_informationOutput->append(tr("总液滴数:\t") + QString::number(allCount - wrongCount));
+    ui.textEdit_informationOutput->append(tr("空包液滴:\t") + QString::number(nonCount));
+    ui.textEdit_informationOutput->append(tr("单包液滴:\t") + QString::number(singleCount));
+    ui.textEdit_informationOutput->append(tr("多包液滴:\t") + QString::number(multiCount));
+    ui.textEdit_informationOutput->append(tr("总单包率:\t") + QString("%1%").arg(100 * singleRate));
+    ui.textEdit_informationOutput->append(tr("单/(单+多):\t") + QString("%1%").arg(100 * singleAll));
+    ui.textEdit_informationOutput->append(tr("平均半径:\t") + QString::number(mean, 'f', 1));
+    ui.textEdit_informationOutput->append(tr("半径CV值:\t") + QString::number(cvVelue, 'f', 3));
+    ui.textEdit_informationOutput->append("-------------------------------------------------");
 }

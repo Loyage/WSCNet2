@@ -1170,6 +1170,7 @@ void extractContoursBright(const Mat& src_gray, vector<vector<Point>>& pCountour
 	adaptiveThreshold(src_gray, bw_img, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY, 101, 0);//自适应二值化
 	erode(bw_img, bw_img, element_erode);  //腐蚀
 	dilate(bw_img, bw_img, element_dilate); //膨胀
+	//imwrite("bw_img.jpg", bw_img);
 	if (parameter_adjust)
 	{
 		imshow("bw_img", bw_img);  //中间结果展示

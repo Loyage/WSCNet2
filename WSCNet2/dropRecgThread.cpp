@@ -166,7 +166,6 @@ void dropRecgThread::run()
 	for (const auto& img_name : img_names)
 	{
 		string img_path = img_folder + img_name;
-		string img_name_cut = img_name.substr(0, img_name.find_last_of("."));
 		Mat src_color = imread(img_path);
 		Mat src_gray;
 		cvtColor(src_color, src_gray, COLOR_RGB2GRAY);
@@ -184,6 +183,7 @@ void dropRecgThread::run()
 
 		// 保存位置、判别结果和可视化图像
 		int true_drop_num = 0;
+		string img_name_cut = img_name.substr(0, img_name.find_last_of("."));
 		string text_res_path = img_folder + m_text_save_folder.toStdString() + "\\" + img_name_cut + "_drops.txt";
 		string img_res_path = img_folder + m_img_save_folder.toStdString() + "\\" + img_name_cut + "_drops.png";
 		ofstream fout(text_res_path);
