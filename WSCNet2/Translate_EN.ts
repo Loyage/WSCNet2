@@ -198,7 +198,7 @@
         <location filename="WSCNet2.ui" line="121"/>
         <source>最大半径：</source>
         <oldsource>前景占比（0.5-1）：</oldsource>
-        <translation>Maximum radius:</translation>
+        <translation type="unfinished">Max radius:</translation>
     </message>
     <message>
         <location filename="WSCNet2.ui" line="14"/>
@@ -213,12 +213,12 @@
     <message>
         <location filename="WSCNet2.ui" line="33"/>
         <source>计数模式</source>
-        <translation>Cell counting</translation>
+        <translation>Cell mode</translation>
     </message>
     <message>
         <location filename="WSCNet2.ui" line="46"/>
         <source>参数修正</source>
-        <translation>Param adjustment</translation>
+        <translation>Adjust param</translation>
     </message>
     <message>
         <location filename="WSCNet2.ui" line="67"/>
@@ -243,12 +243,12 @@
     <message>
         <location filename="WSCNet2.ui" line="137"/>
         <source>半径修正：</source>
-        <translation>Radius modification:</translation>
+        <translation>Radius fix:</translation>
     </message>
     <message>
         <location filename="WSCNet2.ui" line="79"/>
         <source>最小半径：</source>
-        <translation>min radius:</translation>
+        <translation>Min radius:</translation>
     </message>
     <message>
         <location filename="WSCNet2.ui" line="634"/>

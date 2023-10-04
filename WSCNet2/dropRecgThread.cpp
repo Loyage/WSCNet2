@@ -99,11 +99,11 @@ void dropRecgThread::run()
 	Parameter param(m_kernel_size, m_min_radius, m_max_radius, area_rate, is_find_overlap, parameter_adjust, visualization, wait_time);
 
 	// load module
-	reportToMain(tr("正在加载分类模型..."));
 	torch::jit::Module clsfy_module;
 	auto device = torch::Device(torch::kCUDA, 0);
 	if (!is_without_module)
 	{
+		reportToMain(tr("正在加载分类模型..."));
 		if (!torch::cuda::is_available())
 		{
 			emit reportToMain("<font color=\"#FF8000\">WARNING</font> CUDA is not available, use CPU instead!");
@@ -161,7 +161,8 @@ void dropRecgThread::run()
 
 
 	// main loop
-	reportToMain(tr("模型加载完成，开始识别..."));
+	if (!is_without_module)
+		reportToMain(tr("模型加载完成，开始识别..."));
 	auto start_time = chrono::steady_clock::now();
 	for (const auto& img_name : img_names)
 	{

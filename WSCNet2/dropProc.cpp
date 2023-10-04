@@ -111,7 +111,7 @@ int dropFindBright(const Mat& src_gray, const Parameter& param, int dev, ScoreCi
 		{
 			const auto& circle_final = final_circles.circles[i];
 			const double dist = std::sqrtf(powf(circle_hough[0] - circle_final.first.x, 2)+ powf(circle_hough[1] - circle_final.first.y, 2));
-			if (dist < param.min_radius)
+			if (dist < circle_final.second + circle_hough[2])
 			{
 				flag = false;
 				break;
