@@ -8,7 +8,7 @@ This project is developed in C++. Third-party libraries used include Qt5, opencv
 
 The interface of our software:
 
-![image-20231011190417126](.\images\gui.png)
+![GUI](./images/gui.png)
 
 ## Install
 
