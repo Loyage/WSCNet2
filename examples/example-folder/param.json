@@ -1,0 +1,13 @@
+{
+	"is_bright_field" : true,
+	"dev_bright" : 5,
+	"module_name" : "traced_Resnet18.pth",
+
+	"min_radius" : 10,
+	"max_radius" : 20,
+	"kernel_size" : 3,
+
+	"is_find_overlap" : true,
+	"is_accelerate" : false,
+	"img_mini_rate" : 0.5
+}
