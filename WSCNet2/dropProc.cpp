@@ -176,6 +176,7 @@ void drawDropCircle(Mat& src_img, int drop_x, int drop_y, int drop_r, int drop_l
 		circle(src_img, Point(drop_x, drop_y), drop_r, Scalar(0, 255, 0), 1); // Green for Multiple drop
 		break;
 	default:
+		circle(src_img, Point(drop_x, drop_y), drop_r, Scalar(0, 255, 0), 1); // Green for Multiple drop
 		break;
 	}
 

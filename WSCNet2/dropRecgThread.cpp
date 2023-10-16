@@ -31,6 +31,7 @@ using json = nlohmann::json;
 
 // 在源文件中定义该函数，避免在头文件中包含torch而影响编译时长
 void dropMatToTensor(const Mat& drop_img, torch::Tensor& img_tensor);
+void findCells(const Mat& input_mat, vector<Point>& cell_pos);
 
 dropRecgThread::dropRecgThread(QObject* parent) : QThread(parent)
 {
@@ -192,8 +193,9 @@ void dropRecgThread::run()
 		// 保存位置、判别结果和可视化图像
 		int true_drop_num = 0;
 		string img_name_cut = img_name.substr(0, img_name.find_last_of("."));
-		string text_res_path = img_folder + m_text_save_folder.toStdString() + "\\" + img_name_cut + "_drops.txt";
-		string img_res_path = img_folder + m_img_save_folder.toStdString() + "\\" + img_name_cut + "_drops.png";
+		string file_ext = m_is_WSCNet ? "_cells" : "_drops";
+		string text_res_path = img_folder + m_text_save_folder.toStdString() + "\\" + img_name_cut + file_ext + ".txt";
+		string img_res_path = img_folder + m_img_save_folder.toStdString() + "\\" + img_name_cut + file_ext + ".png";
 		ofstream fout(text_res_path);
 		Mat result_img = src_color.clone();
 
@@ -217,7 +219,7 @@ void dropRecgThread::run()
 				dropMatToTensor(drop_img, img_tensor); // 液滴图像Tensor化
 				drop_imgs.push_back(img_tensor);
 			}
-			if (!m_is_WSCNet)
+			if (!m_is_WSCNet) // 普通卷积神经网络
 			{
 				auto output = clsfy_module.forward({ torch::cat(drop_imgs, 0).to(device) }).toTensor().to(torch::kCPU);
 				auto arg_max = torch::argmax(output, 1); // 判别结果
@@ -235,26 +237,49 @@ void dropRecgThread::run()
 					if (drop_label != -1) true_drop_num++;
 				}
 			}
-			else
+			else // WSCNet
 			{
 				auto output = clsfy_module.forward({ torch::cat(drop_imgs, 0).to(device) }).toTuple()->elements();
-				auto output_class = torch::argmax(output.at(0).toTensor(), 1); // 判别结果
-				auto output_count = output.at(1).toTensor(); // 计数结果
-				emit reportToMain("===" + QString::fromStdString(to_string(output_count.dim())));
-				emit reportToMain("===" + QString::fromStdString(to_string(output.at(0).toTensor()[0][0].item<float>())));
-				//for (int drop_i = 0; drop_i < final_circles.size(); drop_i++)
-				//{
-				//	int drop_x = static_cast<int>(final_circles.circles[drop_i].first.x);
-				//	int drop_y = static_cast<int>(final_circles.circles[drop_i].first.y);
-				//	int drop_r = static_cast<int>(final_circles.circles[drop_i].second);
-				//	int drop_label = drop_label_dict[arg_max[drop_i].item<int>()];
+				auto output_class = torch::argmax(output.at(0).toTensor().to(torch::kCPU), 1); // 判别结果
+				auto output_count = output.at(1).toTensor().to(torch::kCPU); // 计数结果
+				for (int drop_i = 0; drop_i < final_circles.size(); drop_i++)
+				{
+					int drop_x = static_cast<int>(final_circles.circles[drop_i].first.x);
+					int drop_y = static_cast<int>(final_circles.circles[drop_i].first.y);
+					int drop_r = static_cast<int>(final_circles.circles[drop_i].second);
+					int drop_class = output_class[drop_i].item<int>();
+					int drop_label = 0;
 
-				//	fout << drop_x << "\t" << drop_y << "\t" << drop_r << "\t" << drop_label << "\t" << arg_max_prob[drop_i][arg_max[drop_i]].item<float>() << endl;
+					if (drop_class == 0) // 不是液滴
+					{
+						drop_label = -1;
+					}
+					else if (drop_class == 1)// 是液滴
+					{
+						auto output_count_i = output_count[drop_i];
+						Mat count_mat(cv::Size(32, 32), CV_32F, output_count_i.data_ptr());
+						vector<Point> cell_pos_drop;
+						findCells(count_mat, cell_pos_drop);
+						drop_label = cell_pos_drop.size();
 
-				//	drawDropCircle(result_img, drop_x, drop_y, drop_r, drop_label);
+						drawDropCircle(result_img, drop_x, drop_y, drop_r, drop_label);
 
-				//	if (drop_label != -1) true_drop_num++;
-				//}
+						// draw cells
+						for (const auto& cell_pos : cell_pos_drop)
+						{
+
+							int cell_x = cell_pos.x;
+							int cell_y = cell_pos.y;
+							Rect drop_rect = Rect(drop_x - drop_r, drop_y - drop_r, 2 * drop_r, 2 * drop_r);
+							drop_rect = drop_rect & Rect(0, 0, result_img.cols - 1, result_img.rows - 1);
+							double cell_true_x = (cell_x - 15.5) / 32.0 * drop_rect.width + drop_x;
+							double cell_true_y = (cell_y - 15.5) / 32.0 * drop_rect.height + drop_y;
+							circle(result_img, Point(cell_true_x, cell_true_y), 1, Scalar(0, 165, 255), -1);
+						}
+					}
+					else return;
+					fout << drop_x << "\t" << drop_y << "\t" << drop_r << "\t" << drop_label << endl;
+				}
 			}
 
 		}
@@ -360,6 +385,19 @@ void dropRecgThread::framesToVideo()
 	writer.release();
 }
 
+void findCells(const Mat& input_mat, vector<Point>& cell_pos)
+{
+	Scalar mat_sum = sum(input_mat);
+	Mat temp_mat = input_mat.clone();
+	int cell_num = floor(mat_sum[0]);
+	for (int i = 0; i < cell_num; i++)
+	{
+		Point cell_pos_i;
+		minMaxLoc(temp_mat, NULL, NULL, NULL, &cell_pos_i);
+		temp_mat.at<float>(cell_pos_i) = 0;
+		cell_pos.push_back(cell_pos_i);
+	}
+}
 
 //将Mat转换为Tensor，并进行归一化
 void dropMatToTensor(const Mat& drop_img, torch::Tensor& img_tensor)
