@@ -46,6 +46,8 @@ private slots:
 
     void on_lineEdit_labelText_textChanged(const QString &text);
 
+    void on_pushButton_chooseModule_clicked();
+
     void on_pushButton_countDroplets_clicked();
 
     void on_pushButton_clearMessage_clicked();

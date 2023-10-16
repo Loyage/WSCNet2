@@ -75,6 +75,7 @@ void dropRecgThread::setParams(bool is_bright_field, int kernel_size, int min_ra
 	m_kernel_size = kernel_size;
 	m_min_radius = (float)min_radius;
 	m_max_radius = (float)max_radius;
+	m_is_WSCNet = m_module_path.contains("WSCNet");
 }
 
 void dropRecgThread::run()
@@ -182,6 +183,12 @@ void dropRecgThread::run()
 			drop_num = dropFindDark(src_gray, param, final_circles);
 		}
 
+		if (drop_num == 0)
+		{
+			emit reportToMain("The number of drops in " + QString::fromStdString(img_name) + " is: 0");
+			continue;
+		}
+
 		// 保存位置、判别结果和可视化图像
 		int true_drop_num = 0;
 		string img_name_cut = img_name.substr(0, img_name.find_last_of("."));
@@ -194,27 +201,26 @@ void dropRecgThread::run()
 		if (!is_without_module)
 		{
 			int drop_label_dict[4] = { -1, 0, 1, 2 }; // 0: empty drop; 1: single drop; 2: multi drop; -1: not a drop
-			if (drop_num > 0)
+			vector<torch::Tensor> drop_imgs;
+			// 遍历液滴
+			for (int drop_i = 0; drop_i < final_circles.size(); drop_i++)
 			{
-				// 遍历液滴
-				vector<torch::Tensor> drop_imgs;
-				for (int drop_i = 0; drop_i < final_circles.size(); drop_i++)
-				{
-					int drop_x = static_cast<int>(final_circles.circles[drop_i].first.x);
-					int drop_y = static_cast<int>(final_circles.circles[drop_i].first.y);
-					int drop_r = static_cast<int>(final_circles.circles[drop_i].second);
+				int drop_x = static_cast<int>(final_circles.circles[drop_i].first.x);
+				int drop_y = static_cast<int>(final_circles.circles[drop_i].first.y);
+				int drop_r = static_cast<int>(final_circles.circles[drop_i].second);
 
-					Rect rect(drop_x - drop_r + 1, drop_y - drop_r + 1, drop_r * 2 + 0.5, drop_r * 2 + 0.5);
-					rect = rect & Rect(0, 0, src_gray.cols - 1, src_gray.rows - 1);
+				Rect rect(drop_x - drop_r + 1, drop_y - drop_r + 1, drop_r * 2 + 0.5, drop_r * 2 + 0.5);
+				rect = rect & Rect(0, 0, src_gray.cols - 1, src_gray.rows - 1);
 
-					Mat drop_img = src_color(rect).clone();
-					torch::Tensor img_tensor;
-					dropMatToTensor(drop_img, img_tensor); // 液滴图像Tensor化
-					drop_imgs.push_back(img_tensor);
-				}
+				Mat drop_img = src_color(rect).clone();
+				torch::Tensor img_tensor;
+				dropMatToTensor(drop_img, img_tensor); // 液滴图像Tensor化
+				drop_imgs.push_back(img_tensor);
+			}
+			if (!m_is_WSCNet)
+			{
 				auto output = clsfy_module.forward({ torch::cat(drop_imgs, 0).to(device) }).toTensor().to(torch::kCPU);
 				auto arg_max = torch::argmax(output, 1); // 判别结果
-
 				for (int drop_i = 0; drop_i < final_circles.size(); drop_i++)
 				{
 					int drop_x = static_cast<int>(final_circles.circles[drop_i].first.x);
@@ -229,23 +235,42 @@ void dropRecgThread::run()
 					if (drop_label != -1) true_drop_num++;
 				}
 			}
+			else
+			{
+				auto output = clsfy_module.forward({ torch::cat(drop_imgs, 0).to(device) }).toTuple()->elements();
+				auto output_class = torch::argmax(output.at(0).toTensor(), 1); // 判别结果
+				auto output_count = output.at(1).toTensor(); // 计数结果
+				emit reportToMain("===" + QString::fromStdString(to_string(output_count.dim())));
+				emit reportToMain("===" + QString::fromStdString(to_string(output.at(0).toTensor()[0][0].item<float>())));
+				//for (int drop_i = 0; drop_i < final_circles.size(); drop_i++)
+				//{
+				//	int drop_x = static_cast<int>(final_circles.circles[drop_i].first.x);
+				//	int drop_y = static_cast<int>(final_circles.circles[drop_i].first.y);
+				//	int drop_r = static_cast<int>(final_circles.circles[drop_i].second);
+				//	int drop_label = drop_label_dict[arg_max[drop_i].item<int>()];
+
+				//	fout << drop_x << "\t" << drop_y << "\t" << drop_r << "\t" << drop_label << "\t" << arg_max_prob[drop_i][arg_max[drop_i]].item<float>() << endl;
+
+				//	drawDropCircle(result_img, drop_x, drop_y, drop_r, drop_label);
+
+				//	if (drop_label != -1) true_drop_num++;
+				//}
+			}
+
 		}
 		else // 不使用模型，仅进行分割
 		{
-			if (drop_num > 0)
+			for (int drop_i = 0; drop_i < final_circles.size(); drop_i++)
 			{
-				for (int drop_i = 0; drop_i < final_circles.size(); drop_i++)
-				{
-					int drop_x = static_cast<int>(final_circles.circles[drop_i].first.x);
-					int drop_y = static_cast<int>(final_circles.circles[drop_i].first.y);
-					int drop_r = static_cast<int>(final_circles.circles[drop_i].second);
+				int drop_x = static_cast<int>(final_circles.circles[drop_i].first.x);
+				int drop_y = static_cast<int>(final_circles.circles[drop_i].first.y);
+				int drop_r = static_cast<int>(final_circles.circles[drop_i].second);
 
-					fout << drop_x << "\t" << drop_y << "\t" << drop_r << "\t" << 0 << endl;
+				fout << drop_x << "\t" << drop_y << "\t" << drop_r << "\t" << 0 << endl;
 
-					drawDropCircle(result_img, drop_x, drop_y, drop_r, 0);
+				drawDropCircle(result_img, drop_x, drop_y, drop_r, 0);
 
-					true_drop_num++;
-				}
+				true_drop_num++;
 			}
 		}
 		fout.close();

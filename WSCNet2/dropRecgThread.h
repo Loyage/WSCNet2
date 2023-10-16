@@ -37,6 +37,7 @@ private:
     QString m_module_path;
     
     bool m_is_bright_field;
+    bool m_is_WSCNet;
     int m_dev_bright;
     int m_kernel_size;
     float m_min_radius;

@@ -160,11 +160,10 @@ void WSCNet2::on_pushButton_chooseImage_clicked()
     QString workPlaceAddress = ui.lineEdit_workPlace->text();
     m_file_chosen_path = QFileDialog::getOpenFileName(this, "File Dialog", workPlaceAddress, "image file(*bmp *jpg *png *)");
     QString file_path = QFileInfo(m_file_chosen_path).path() + "/";
-    QString work_place = ui.lineEdit_workPlace->text();
 
     if (m_file_chosen_path.size()) // 防止取消选择
     {
-        if (file_path != work_place) // 防止图片不在当前文件夹
+        if (file_path != workPlaceAddress) // 防止图片不在当前文件夹
         {
             QMessageBox::warning(this, "Warning", tr("图像不在当前文件夹，请重新选择！"), QMessageBox::Ok);
             return;
@@ -364,6 +363,22 @@ void WSCNet2::on_lineEdit_labelText_textChanged(const QString& text)
 
     printDropMessages();
     updateComponentAvailability(); // 更新组件可用性
+}
+
+void WSCNet2::on_pushButton_chooseModule_clicked()
+{
+    QString work_place = ui.lineEdit_workPlace->text();
+    QString module_chosen = QFileDialog::getOpenFileName(this, "File Dialog", work_place, "module file(*pt *pth)");
+    QString module_chosen_path = QFileInfo(module_chosen).path() + "/";
+
+    if (module_chosen_path != work_place)
+    {
+        QMessageBox::warning(this, "Warning", tr("图像不在当前文件夹，请重新选择！"), QMessageBox::Ok);
+        return;
+    }
+
+    QString module_chosen_name = QFileInfo(module_chosen).fileName();
+    ui.lineEdit_moduleName->setText(module_chosen_name);
 }
 
 void WSCNet2::on_pushButton_countDroplets_clicked()
