@@ -373,8 +373,13 @@ void WSCNet2::on_pushButton_chooseModule_clicked()
 
     if (module_chosen_path != work_place)
     {
-        QMessageBox::warning(this, "Warning", tr("图像不在当前文件夹，请重新选择！"), QMessageBox::Ok);
+        QMessageBox::warning(this, "Warning", tr("Please choose file in the workplace!"), QMessageBox::Ok);
         return;
+    }
+
+    if (!module_chosen.contains("traced"))
+    {
+        ui.textEdit_informationOutput->append("<font color=\"#FF8000\">WARNING</font> You might have chosen a untraced module!");
     }
 
     QString module_chosen_name = QFileInfo(module_chosen).fileName();
