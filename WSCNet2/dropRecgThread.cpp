@@ -257,6 +257,8 @@ void dropRecgThread::run()
 					}
 					else if (drop_class == 1)// 是液滴
 					{
+						true_drop_num++;
+
 						auto output_count_i = output_count[drop_i];
 						Mat count_mat(cv::Size(32, 32), CV_32F, output_count_i.data_ptr());
 						vector<Point> cell_pos_drop;
@@ -274,7 +276,7 @@ void dropRecgThread::run()
 							int cell_y = cell_pos.y;
 							Rect drop_rect = Rect(drop_x - drop_r, drop_y - drop_r, 2 * drop_r, 2 * drop_r);
 							drop_rect = drop_rect & Rect(0, 0, result_img.cols - 1, result_img.rows - 1);
-							int cell_true_x = static_cast<int>((cell_x - 15.5) / 32.0 * drop_rect.width + drop_x);
+							int cell_true_x = static_cast<int>((cell_x + 4 - 15.5) / 32.0 * drop_rect.width + drop_x); // 4作为修正偏移量
 							int cell_true_y = static_cast<int>((cell_y - 15.5) / 32.0 * drop_rect.height + drop_y);
 							circle(result_img, Point(cell_true_x, cell_true_y), 1, Scalar(0, 165, 255), -1);
 							fout << "\t" << cell_true_x << "\t" << cell_true_y;
