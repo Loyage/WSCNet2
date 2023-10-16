@@ -341,14 +341,16 @@ void WSCNet2::on_lineEdit_labelText_textChanged(const QString& text)
         ifstream infile;
         dropType circles_txt;
         infile.open(labelFileAddress.toStdString(), ios::in);
+        string line;
         if (!infile.is_open())
         {
             ui.textEdit_informationOutput->append("<font color=\"#FF0000\">ERROR</font> loading label file: " + labelFileAddress);//输出
             return;
         }
-        while (!infile.eof())
+        while (getline(infile, line))
         {
-            infile >> circles_txt.first.first.x >> circles_txt.first.first.y >> circles_txt.first.second >> circles_txt.second;
+            std::istringstream iss(line);
+            iss >> circles_txt.first.first.x >> circles_txt.first.first.y >> circles_txt.first.second >> circles_txt.second;
             if (infile.good())
             {
                 m_circle_result.push_back(circles_txt);
@@ -1112,7 +1114,10 @@ void WSCNet2::onThreadFinished()
             QString text = ui.lineEdit_imageName->text();
             QString img_name = QString::fromStdString(text.toStdString().substr(0, text.toStdString().find_last_of(".")));
             ui.lineEdit_labelText->clear();
-            ui.lineEdit_labelText->setText(img_name + "_drops.txt");
+            if (ui.lineEdit_moduleName->text().contains("WSCNet"))
+                ui.lineEdit_labelText->setText(img_name + "_cells.txt");
+            else
+                ui.lineEdit_labelText->setText(img_name + "_drops.txt");
         }
     }
 

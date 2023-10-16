@@ -253,6 +253,7 @@ void dropRecgThread::run()
 					if (drop_class == 0) // 不是液滴
 					{
 						drop_label = -1;
+						fout << drop_x << "\t" << drop_y << "\t" << drop_r << "\t" << drop_label << endl;
 					}
 					else if (drop_class == 1)// 是液滴
 					{
@@ -262,6 +263,7 @@ void dropRecgThread::run()
 						findCells(count_mat, cell_pos_drop);
 						drop_label = cell_pos_drop.size();
 
+						fout << drop_x << "\t" << drop_y << "\t" << drop_r << "\t" << drop_label;
 						drawDropCircle(result_img, drop_x, drop_y, drop_r, drop_label);
 
 						// draw cells
@@ -272,13 +274,14 @@ void dropRecgThread::run()
 							int cell_y = cell_pos.y;
 							Rect drop_rect = Rect(drop_x - drop_r, drop_y - drop_r, 2 * drop_r, 2 * drop_r);
 							drop_rect = drop_rect & Rect(0, 0, result_img.cols - 1, result_img.rows - 1);
-							double cell_true_x = (cell_x - 15.5) / 32.0 * drop_rect.width + drop_x;
-							double cell_true_y = (cell_y - 15.5) / 32.0 * drop_rect.height + drop_y;
+							int cell_true_x = static_cast<int>((cell_x - 15.5) / 32.0 * drop_rect.width + drop_x);
+							int cell_true_y = static_cast<int>((cell_y - 15.5) / 32.0 * drop_rect.height + drop_y);
 							circle(result_img, Point(cell_true_x, cell_true_y), 1, Scalar(0, 165, 255), -1);
+							fout << "\t" << cell_true_x << "\t" << cell_true_y;
 						}
+						fout << endl;
 					}
 					else return;
-					fout << drop_x << "\t" << drop_y << "\t" << drop_r << "\t" << drop_label << endl;
 				}
 			}
 
